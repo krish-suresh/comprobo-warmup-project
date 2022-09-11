@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'comprobo-warmup-project'
+package_name = 'comprobo_warmup_project'
 
 setup(
     name=package_name,
@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'teleop = comprobo-warmup-project.teleop:main'
+            'teleop = comprobo_warmup_project.teleop:main',
+            'marker_test = comprobo_warmup_project.marker_test_node:main'
         ],
     },
 )
