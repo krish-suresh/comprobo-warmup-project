@@ -2,7 +2,8 @@ import rclpy
 from rclpy.node import Node
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
-from geometry_msgs.msg import Pose, Vector3
+from geometry_msgs.msg import Pose, Vector3, Point
+from builtin_interfaces.msg import Duration
 
 
 class MarkerTestNode(Node):
@@ -13,10 +14,12 @@ class MarkerTestNode(Node):
         self.publisher = self.create_publisher(Marker, 'test_marker', 10)
 
     def run_loop(self):
-        pose = Pose(x=1, y=2, z=0)
-        self.publisher.publish(Marker(header=Header, ns="marker", id=0,
-                               type=2, action=0, pose=pose, scale=Vector3(x=1, y=1, z=1),
-                               color=ColorRGBA(r=0.5,g=0.5,b=0)))
+        pose = Pose(position=Point(x=0.0, y=0.0, z=0.0))
+        header = Header(stamp=self.get_clock().now().to_msg(), frame_id="odom")
+        self.publisher.publish(Marker(header=header, ns="marker", id=0,
+                               type=2, action=0, pose=pose, scale=Vector3(x=1.0, y=1.0, z=1.0),
+                               lifetime=Duration(sec=0),
+                               color=ColorRGBA(r=0.0,g=1.0,b=0.0)))
 
 
 def main(args=None):
