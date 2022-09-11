@@ -14,9 +14,9 @@ class TeleopNode(Node):
         'a': Twist(linear=Vector3(x=0.0, y=0.0, z=0.0), angular=Vector3(x=0.0,y=0.0,z=1.0)),
         's': Twist(linear=Vector3(x=0.0, y=0.0, z=0.0), angular=Vector3(x=0.0,y=0.0,z=0.0)),
         'd': Twist(linear=Vector3(x=0.0, y=0.0, z=0.0), angular=Vector3(x=0.0,y=0.0,z=-1.0)),
-        'z': Twist(linear=Vector3(x=0.0, y=-0.5, z=0.0), angular=Vector3(x=0.0,y=0.0,z=1.0)),
-        'x': Twist(linear=Vector3(x=0.0, y=-0.5, z=0.0), angular=Vector3(x=0.0,y=0.0,z=0.0)),
-        'c': Twist(linear=Vector3(x=0.0, y=-0.5, z=0.0), angular=Vector3(x=0.0,y=0.0,z=-1.0)),
+        'z': Twist(linear=Vector3(x=-0.5, y=0.0, z=0.0), angular=Vector3(x=0.0,y=0.0,z=-1.0)),
+        'x': Twist(linear=Vector3(x=-0.5, y=0.0, z=0.0), angular=Vector3(x=0.0,y=0.0,z=0.0)),
+        'c': Twist(linear=Vector3(x=-0.5, y=0.0, z=0.0), angular=Vector3(x=0.0,y=0.0,z=1.0)),
     }
 
     def __init__(self):
@@ -37,9 +37,11 @@ class TeleopNode(Node):
     def run_loop(self):
         self.key = self.get_key()
         if self.key == '\x03':
+            self.publisher.publish(self.key_to_vel['s'])
             raise KeyboardInterrupt
         if self.key in self.key_to_vel.keys():
             self.publisher.publish(self.key_to_vel[self.key])
+        print(self.key_to_vel[self.key])
         
 
 
