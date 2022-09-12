@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'teleop = comprobo_warmup_project.teleop:main',
+            'drive_square = comprobo_warmup_project.drive_square:main',
             'marker_test = comprobo_warmup_project.marker_test_node:main'
         ],
     },
