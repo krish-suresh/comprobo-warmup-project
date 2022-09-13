@@ -18,19 +18,20 @@ The Teleop behavior maps 9 keyboard inputs (Q, W, E, A, S, D, Z, X, C) to 9 diff
 - X: Reverse
 - C: Veer Right (reverse)
 
-In addition, pressing Ctrl+C stops the robot's motion and terminates execution of the Teleop node.
+In addition, pressing `Ctrl+C` stops the robot's motion and terminates execution of the Teleop node.
 #### Features
-The code structure for the Teleop Node consists of three primary functions: the initializer, get_key(), and run_loop(). 
+The code structure for the Teleop Node consists of three primary functions: `__init__()`, `get_key()`, and `run_loop()`. 
 
 The initializer is responsible for creating a publisher to publish Twist objects to the /cmd_vel topic, which dictates the linear and angular velocity of the Neato. It also creates a 10 Hz timer that calls run_loop() on every timer increment.
 
-get_key() is what allows the node to interface with user input. The function listens to the user's keyboard and returns a string representation of the key that was pressed.
+`get_key()` is what allows the node to interface with user input. The function listens to the user's keyboard and returns a string representation of the key that was pressed.
 
-run_loop() is responsible for publishing Twists to the /cmd_vel topic. The function starts by calling get_key() to receive 
+`run_loop()` is responsible for publishing Twists to the /cmd_vel topic. The function starts by calling get_key() to receive a user key press. If the key is one of the 9 defined robot movements, the publisher publishes a Twist command to the Neato that corresponds to the specified action. If `Ctrl+C` is pressed, a Twist command containing 0 linear and angular velocity (stop) is sent and execution of the loop is terminated.
 #### Limitations
-The current implementation of Teleop has three main limitations: keypresses cannot be combined and the driving structure is not intuitive. 
-limitations: can't combine key presses, hard to make small adjustments, loop
+The current implementation of Teleop has three main limitations: keypresses cannot be combined, the driving structure is not intuitive, and reading keyboard input stalls other processes. Currently, when the user presses two keys at once, the specified motion corresponds to only the most recent press. However, intuitively, a user would expect the motion to be a combination of the two presses. For example, if 'A' and 'D' is pressed, the robot should stay in place as the two motions cancel out. Another unintuitive aspect of the current driving system is if one key is simply pressed and released, the robot continues in that motion until another key is pressed. This seems less logical than having the robot only move in a certain motion while the key is pressed, and stop that motion when it is released. Finally, the current implementation of `get_key()` is a limiting factor as it stalls all other processes. `get_key()` runs a loop that listens for keyboard input, and only finishes execution once a key has been pressed. This limits the teleop node's ability to run other processes concurrently with listening for user input.
 
+### Square Drive
+TODO: square driving documentation
 
 ### Wall Follower
 
