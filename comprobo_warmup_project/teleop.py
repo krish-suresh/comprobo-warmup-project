@@ -41,9 +41,7 @@ class TeleopNode(Node):
             raise KeyboardInterrupt
         if self.key in self.key_to_vel.keys():
             self.publisher.publish(self.key_to_vel[self.key])
-        print(self.key_to_vel[self.key])
         
-
 
 def main(args=None):
     rclpy.init(args=args)

@@ -34,8 +34,6 @@ class DriveSquareNode(Node):
 
     def __init__(self):
         super().__init__('drive_square_node')
-        self.position = Point(x=0.0, y=0.0, z=0.0)
-        self.orientation = Quaternion()
         self.init_pos = None
         self.init_or = None
         self.curr_state = 'forward'
@@ -54,7 +52,6 @@ class DriveSquareNode(Node):
     def dist_travelled(self):
         curr_pos = np.array([self.position.x, self.position.y, self.position.z])
         init_pos = np.array([self.init_pos.x, self.init_pos.y, self.init_pos.z])
-
         return np.linalg.norm(curr_pos-init_pos)
 
     def angle_travelled(self):
@@ -63,20 +60,14 @@ class DriveSquareNode(Node):
         return min(np.abs(curr_yaw-init_yaw), np.pi*2-np.abs(curr_yaw-init_yaw))
 
     def run_loop(self):
-        if self.curr_state == 'forward':
-            if self.dist_travelled() < 1.0:
-                self.publisher.publish(self.states[self.curr_state])
-            else:
-                self.curr_state = 'turning'
-                print('change')
-                self.init_or = self.orientation
+        if self.curr_state == 'forward' and self.dist_travelled() > 1.0:
+            self.curr_state = 'turning'
+            self.init_or = self.orientation
+        elif self.curr_state == 'turning' and self.angle_travelled() > np.pi/2:
+            self.curr_state = 'forward'
+            self.init_pos = self.position
         else:
-            print(self.angle_travelled())
-            if self.angle_travelled() < np.pi/2:
-                self.publisher.publish(self.states[self.curr_state])
-            else:
-                self.curr_state = 'forward'
-                self.init_pos = self.position
+            self.publisher.publish(self.states[self.curr_state])
             
 
 
