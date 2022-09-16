@@ -21,6 +21,7 @@ class WallFollowerNode(Node):
             print("WALL NOT FOUND")
             vels = Twist(linear=Vector3(x=0.0, y=0.0, z=0.0), angular=Vector3(x=0.0,y=0.0,z=0.0)),
             self.publisher.publish(vels)
+            return
         dist_to_wall = min(valid_data)
         theta_wall = (math.pi/4)-math.atan2(msg.ranges[315], msg.ranges[235])
         rotation_speed = (WALL_DIST-dist_to_wall)*Kp_wall + theta_wall*Kp_theta
