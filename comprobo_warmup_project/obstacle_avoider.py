@@ -24,6 +24,9 @@ def euler_from_quaternion(quat: Quaternion):
 
 FORCE_PARAMETER = -60
 ATTRACTIVE_PARAMETER = 3000
+LIN_VEL_SCALE = 10
+ANG_VEL_SCALE = 50
+
 class ObstacleAvoider(Node):
     destination = np.array([3, -4])
 
@@ -46,7 +49,6 @@ class ObstacleAvoider(Node):
 
     def calculate_net_force(self):
         self.net_force = self.attractive_forces + self.repellent_forces
-        # self.net_force = self.attractive_forces
 
     def calculate_attractive_forces(self):
         self.attractive_forces = ATTRACTIVE_PARAMETER/self.dist_from_target*(self.destination - self.curr_pos)
@@ -78,7 +80,7 @@ class ObstacleAvoider(Node):
         if self.dist_from_target < 0.01:
             self.publisher.publish(Twist(linear=Vector3(x=0.0, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=0.0)))
             rclpy.shutdown()
-        self.publisher.publish(Twist(linear=Vector3(x=np.linalg.norm(self.dist_from_target)/10, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=self.angular_diff/50)))
+        self.publisher.publish(Twist(linear=Vector3(x=np.linalg.norm(self.dist_from_target)/LIN_VEL_SCALE, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=self.angular_diff/ANG_VEL_SCALE)))
 
 def main(args=None):
     rclpy.init(args=args)
