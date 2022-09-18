@@ -28,12 +28,12 @@ LIN_VEL_SCALE = 10
 ANG_VEL_SCALE = 50
 
 class ObstacleAvoider(Node):
-    destination = np.array([3, -4])
 
-    def __init__(self):
+    def __init__(self, destination = np.array([0, -2]), use_timer=True):
         super().__init__('obstacle_avoider_node')
-        timer_period = 0.1
-        self.timer = self.create_timer(timer_period, self.run_loop)
+        if use_timer:
+            timer_period = 0.1
+            self.timer = self.create_timer(timer_period, self.run_loop)
         self.subscriber_scan = self.create_subscription(LaserScan, 'scan', self.calculate_repellent_forces, 10)
         self.subscriber_odom = self.create_subscription(Odometry, 'odom', self.update_curr_pose, 10)
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
@@ -42,6 +42,10 @@ class ObstacleAvoider(Node):
         self.repellent_forces = np.array([0, 0])
         self.heading = np.array([0, 0])
         self.curr_heading = np.array([0, 0])
+        self.destination = destination
+
+    def update_destination(self, new_destination):
+        self.destination = new_destination
 
     def calculate_heading(self):
         self.calculate_net_force()
