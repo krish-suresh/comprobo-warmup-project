@@ -52,9 +52,12 @@ TODO code samples
 
 ### Person Follower
 #### Behavior
-TODO
+To implement a person following behavior, we started by making the assumption that the only object in our environment is the person. This allows us to use the lidar data directly as an input to show where the Neato should head. First, we can convert all of the measured lidar data from polar coordinates to be in the lidar’s reference frame. Next, we can find the centroid of all the measured data by averaging the coordinates. This point becomes the target location we want the Neato to go to. To find the action the Neato should take, we can find the distance and angle to the point in our lidar frame both of which we are looking to control. 
+
+In order for the Neato to orient the heading towards the person and control the target distance to the person to be 0.5m, we can use two proportional controllers for the linear and angular velocity of the robot. However, when the Neato is oriented away from the person, we need to still ensure that the Neato goes towards the person. To do so, we can invert the target distance and angle to make the Neato back towards and curve away from the person and then switch back to the forward oriented control.
+
 #### Limitations
-TODO
+One of the primary limitations of this implementation is the inability to segment a person from an environment where non-person objects exist.
 
 ### Obstacle Avoidance 
 
