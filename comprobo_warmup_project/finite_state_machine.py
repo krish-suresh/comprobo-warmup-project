@@ -10,18 +10,22 @@ import cv2
 import torch
 from yolov5.utils.plots import Annotator, colors
 from yolov5.models.common import Detections
+from visualization_msgs.msg import Marker
+from std_msgs.msg import Header, ColorRGBA
 import math
+from geometry_msgs.msg import Pose, Vector3, Point
+from builtin_interfaces.msg import Duration
 
 Kp_angle = 0.8
 CLOST_DIST = 0.4
 OBS_DIST = 1.0
 
-FORCE_PARAMETER_Y = -40 
-FORCE_PARAMETER_X = -40
-ATTRACTIVE_PARAMETER = 5000
+FORCE_PARAMETER_Y = -50 
+FORCE_PARAMETER_X = -50
+ATTRACTIVE_PARAMETER = 3000
 LIN_VEL_SCALE = 15
 ANG_VEL_SCALE = 50
-AVOIDED_DISTANCE = 1.0
+AVOIDED_DISTANCE = 2.0
 
 def euler_from_quaternion(quat: Quaternion):
     x = quat.x
@@ -83,9 +87,9 @@ class ObstacleDetection():
 
     def calculate_vel(self):
         self.calculate_heading()
-        if self.dist_from_target < 0.05:
+        if self.dist_from_target < 0.2:
             self.obstacle_avoided = True
-        return Twist(linear=Vector3(x=0.15, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=self.angular_diff/ANG_VEL_SCALE))
+        return Twist(linear=Vector3(x=0.1, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=self.angular_diff/ANG_VEL_SCALE))
 
 
 class FiniteStateMachine(Node):
@@ -106,6 +110,7 @@ class FiniteStateMachine(Node):
         self.close_ranges = []
         self.ranges = None
         self.obstacle_handler = ObstacleDetection()
+        self.marker_pub = self.create_publisher(Marker, 'test_marker', 10)
 
     def update_pose(self, msg: Odometry):
         self.obstacle_handler.curr_pos = np.array([msg.pose.pose.position.x, msg.pose.pose.position.y])
@@ -176,6 +181,12 @@ class FiniteStateMachine(Node):
                     self.curr_state = State.NO_PERSON
                 return
             self.publisher.publish(self.obstacle_handler.calculate_vel())
+            pose = Pose(position=Point(x=float(self.obstacle_handler.destination[0]), y=float(self.obstacle_handler.destination[1]), z=0.0))
+            header = Header(stamp=self.get_clock().now().to_msg(), frame_id="odom")
+            self.marker_pub.publish(Marker(header=header, ns="marker", id=0,
+                                type=2, action=0, pose=pose, scale=Vector3(x=0.2, y=0.2, z=0.2),
+                                lifetime=Duration(sec=0),
+                                color=ColorRGBA(r=0.0,g=1.0,b=0.0,a=1.0)))
 
 def main(args=None):
     rclpy.init(args=args)
