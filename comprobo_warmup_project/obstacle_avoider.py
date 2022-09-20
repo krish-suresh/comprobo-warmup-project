@@ -22,19 +22,20 @@ def euler_from_quaternion(quat: Quaternion):
     
     return yaw_z
 
-FORCE_PARAMETER = -60
-ATTRACTIVE_PARAMETER = 3000
-LIN_VEL_SCALE = 10
+FORCE_PARAMETER_Y = -40 
+FORCE_PARAMETER_X = -40
+ATTRACTIVE_PARAMETER = 5000
+LIN_VEL_SCALE = 15
 ANG_VEL_SCALE = 50
 
 class ObstacleAvoider(Node):
 
-    def __init__(self, destination = np.array([0, -2]), use_timer=True):
+    def __init__(self, destination = np.array([2, 0]), use_timer=True):
         super().__init__('obstacle_avoider_node')
         if use_timer:
             timer_period = 0.1
             self.timer = self.create_timer(timer_period, self.run_loop)
-        self.subscriber_scan = self.create_subscription(LaserScan, 'scan', self.calculate_repellent_forces, 10)
+        self.subscriber_scan = self.create_subscription(LaserScan, 'scan', self.calculate_repellent_forces, 1000)
         self.subscriber_odom = self.create_subscription(Odometry, 'odom', self.update_curr_pose, 10)
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
         self.curr_pos = np.array([0, 0])
@@ -49,7 +50,10 @@ class ObstacleAvoider(Node):
 
     def calculate_heading(self):
         self.calculate_net_force()
-        self.heading = self.net_force/np.linalg.norm(self.net_force)
+        if np.linalg.norm(self.net_force) == 0:
+            self.heading = np.array([0, 0])
+        else:
+            self.heading = self.net_force/np.linalg.norm(self.net_force)
 
     def calculate_net_force(self):
         self.net_force = self.attractive_forces + self.repellent_forces
@@ -61,7 +65,7 @@ class ObstacleAvoider(Node):
         forces = []
         for angle, point in enumerate(msg.ranges):
             if point > 0.0:
-                forces.append([FORCE_PARAMETER*math.cos(math.radians(angle))/point**2, FORCE_PARAMETER*math.sin(math.radians(angle))])
+                forces.append([FORCE_PARAMETER_X*math.cos(math.radians(angle))/point**2, FORCE_PARAMETER_Y*math.sin(math.radians(angle))/point**2])
         self.repellent_forces = np.sum(np.array(forces), axis=0)
 
     def update_curr_pose(self, msg: Odometry):
@@ -81,10 +85,11 @@ class ObstacleAvoider(Node):
     def run_loop(self):
         self.calculate_heading()
         print(self.dist_from_target)
-        if self.dist_from_target < 0.01:
+        if self.dist_from_target < 0.05:
             self.publisher.publish(Twist(linear=Vector3(x=0.0, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=0.0)))
             rclpy.shutdown()
-        self.publisher.publish(Twist(linear=Vector3(x=np.linalg.norm(self.dist_from_target)/LIN_VEL_SCALE, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=self.angular_diff/ANG_VEL_SCALE)))
+        x_vel = np.linalg.norm(self.dist_from_target)/LIN_VEL_SCALE
+        self.publisher.publish(Twist(linear=Vector3(x=0.15, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=self.angular_diff/ANG_VEL_SCALE)))
 
 def main(args=None):
     rclpy.init(args=args)
