@@ -88,7 +88,7 @@ Another limitation tothe current implementation is overfitting. The tuned parame
 #### Behavior
 TODO
 
-![Finite State Demo](images/finitestate.gif)
+![Finite State Demo](images/finite_state.gif)
 ![Person Follower YOLO Demo](images/yolo_follow.gif)
 
 #### Limitations
