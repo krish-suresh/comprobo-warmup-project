@@ -66,6 +66,7 @@ To implement a person following behavior, we started by making the assumption th
 
 In order for the Neato to orient the heading towards the person and control the target distance to the person to be 0.5m, we can use two proportional controllers for the linear and angular velocity of the robot. However, when the Neato is oriented away from the person, we need to still ensure that the Neato goes towards the person. To do so, we can invert the target distance and angle to make the Neato back towards and curve away from the person and then switch back to the forward oriented control.
 
+![Person Avoidance Demo](images/person_follower.gif)
 #### Limitations
 One of the primary limitations of this implementation is the inability to segment a person from an environment where non-person objects exist.
 
