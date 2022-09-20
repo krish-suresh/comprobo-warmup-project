@@ -161,6 +161,7 @@ class FiniteStateMachine(Node):
                 return
             if self.has_obs:
                 self.curr_state = State.HAS_OBS
+                self.obstacle_handler.obstacle_avoided = False
                 self.obstacle_handler.update_destination()
                 return
             self.search_dir = 1 if self.person_loc[0] < 0 else -1
