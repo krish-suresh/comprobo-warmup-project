@@ -48,7 +48,6 @@ class State(Enum):
     CLOSE_TO_PERSON = 1
     OBSTACLE_DETECTED = 2
     FOLLOWING_PERSON = 3
-    HAS_OBS = 4
 
 class ObstacleDetection():
     def __init__(self):
@@ -165,7 +164,7 @@ class FiniteStateMachine(Node):
                 self.curr_state = State.CLOSE_TO_PERSON
                 return
             if self.has_obs:
-                self.curr_state = State.HAS_OBS
+                self.curr_state = State.OBSTACLE_DETECTED
                 self.obstacle_handler.obstacle_avoided = False
                 self.obstacle_handler.update_destination()
                 return
@@ -173,7 +172,7 @@ class FiniteStateMachine(Node):
             turn_speed = -float(Kp_angle*self.person_loc[0])
             print(turn_speed)
             self.publisher.publish(Twist(linear=Vector3(x=0.2, y=0.0, z=0.0), angular=Vector3(x=0.0, y=0.0, z=turn_speed)))
-        elif self.curr_state == State.HAS_OBS:
+        elif self.curr_state == State.OBSTACLE_DETECTED:
             if self.obstacle_handler.obstacle_avoided == True:
                 if self.person_loc is not None:
                     self.curr_state = State.FOLLOWING_PERSON

@@ -87,10 +87,23 @@ Another limitation tothe current implementation is overfitting. The tuned parame
 ### Finite State Machine
 
 #### Behavior
-TODO
+For the finite state machine project, we wanted to combine the person follower and obstacle avoidance behaviors. The motivation for this combination was from the limitations we faced when testing the person following behavior on the physical Neato. We found that lidar filtering was required for proper segmentation which forces the controller to remove information about the environment which could have been used to better follow the person. To overcome this challenge, we started by moving the person following logic to a separate and more suitable sensor: a camera and more effectively used the Lidar for obstacle avoidance. With a camera, we were able to do more precise object segmentation by using prebuilt object detectors such as YOLO.
 
-![Finite State Demo](images/finite_state.gif)
 ![Person Follower YOLO Demo](images/yolo_follow.gif)
 
+To implement the combined behaviors, we used a finite state machine with four separate states:
+- NO_PERSON: Spin Neato in direction of last seen person (default to CCW)
+- CLOSE_TO_PERSON: Stop Neato 
+- OBSTACLE_DETECTED: Set goal to 2m in front and apply force based obstacle avoidance
+- FOLLOWING_PERSON: Proportionally orient to face person and drive at constant speed forward
+
+![State Transition Flow](images/state_flow.png)
+
+Finally, we arrive at the desired behavior below:
+
+
+
+![Finite State Demo](images/finite_state.gif)
+
 #### Limitations
-TODO
+Our primary limitation with this method is the constrained obstacle avoidance due to the Neato fully switching to avoiding the obstacle when anything is detected in front and only leaving the state when the temporary goal is reached.
