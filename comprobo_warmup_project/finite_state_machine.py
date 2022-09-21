@@ -8,7 +8,6 @@ from nav_msgs.msg import Odometry
 from cv_bridge import CvBridge
 import cv2
 import torch
-from yolov5.utils.plots import Annotator, colors
 from yolov5.models.common import Detections
 from visualization_msgs.msg import Marker
 from std_msgs.msg import Header, ColorRGBA
@@ -16,9 +15,11 @@ import math
 from geometry_msgs.msg import Pose, Vector3, Point
 from builtin_interfaces.msg import Duration
 
-Kp_angle = 0.8
-CLOST_DIST = 0.4
-OBS_DIST = 1.0
+Kp_angle = 0.8  # Proportional constant to orient towards person
+CLOSE_DIST = 0.4  # (proportion of image) 
+OBS_DIST = 1.0  # (m) min dist for obs avoidance to be triggered
+FORWARD_SPEED = 0.2  # (m/s) constant following speed
+OBS_DET_ANGLE = 30 # (degrees) half of scan zone for detection obs in front of neato
 
 # Constants for the obstacle avoidance workflow.
 FORCE_PARAMETER_Y = -50
@@ -26,7 +27,7 @@ FORCE_PARAMETER_X = -50
 ATTRACTIVE_PARAMETER = 3000
 LIN_VEL_SCALE = 15
 ANG_VEL_SCALE = 50
-AVOIDED_DISTANCE = 2.0
+AVOIDED_DISTANCE = 2.0  # (m) target distance in front of neato to avoid obs
 
 
 def euler_from_quaternion(quat: Quaternion):
@@ -120,8 +121,10 @@ class ObstacleDetection:
             if point > 0.0:
                 forces.append(
                     [
-                        FORCE_PARAMETER_X * math.cos(math.radians(angle)) / point**2,
-                        FORCE_PARAMETER_Y * math.sin(math.radians(angle)) / point**2,
+                        FORCE_PARAMETER_X *
+                        math.cos(math.radians(angle)) / point**2,
+                        FORCE_PARAMETER_Y *
+                        math.sin(math.radians(angle)) / point**2,
                     ]
                 )
         self.repellent_forces = np.sum(np.array(forces), axis=0)
@@ -157,26 +160,33 @@ class FiniteStateMachine(Node):
         super().__init__("finite_state_machine_node")
         self.curr_state = State.NO_PERSON
         timer_period = 0.1
+        # Main control loop
         self.timer = self.create_timer(timer_period, self.run_loop)
-        self.publisher = self.create_publisher(Twist, "cmd_vel", 10)
+
+        # Neato pub/sub
+        self.cmd_vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
         self.camera_sub = self.create_subscription(
             Image, "camera/image_raw", self.process_image, 10
         )
         self.scan_sub = self.create_subscription(
             LaserScan, "scan", self.process_scan, 10
         )
-        self.odom_sub = self.create_subscription(Odometry, "odom", self.update_pose, 10)
-        self.br = CvBridge()
-        self.model = torch.hub.load("ultralytics/yolov5", "yolov5s")
-        self.names = self.model.names
-        self.search_dir = 1
-        self.person_loc = None
-        self.close_ranges = []
-        self.ranges = None
-        self.obstacle_handler = ObstacleDetection()
+        self.odom_sub = self.create_subscription(
+            Odometry, "odom", self.update_pose, 10)
         self.marker_pub = self.create_publisher(Marker, "test_marker", 10)
 
+        self.br = CvBridge()  # used to process ROS images to opencv
+        # YOLO model to detect objects
+        self.model = torch.hub.load("ultralytics/yolov5", "yolov5s")
+        self.names = self.model.names  # list of names from model
+        self.search_dir = 1  # direction used to track person when they move out of view
+        # information about person's location when detection exists in camera frame
+        self.person_loc = None
+        self.ranges = None  # Lidar data
+        self.obstacle_handler = ObstacleDetection()  # container for obs avoidance logic
+
     def update_pose(self, msg: Odometry):
+        """Callback to subscribe to the /odom topic and update position for obs avoidance"""
         self.obstacle_handler.curr_pos = np.array(
             [msg.pose.pose.position.x, msg.pose.pose.position.y]
         )
@@ -186,13 +196,14 @@ class FiniteStateMachine(Node):
         )
 
     def process_scan(self, msg: LaserScan):
+        """Read lidar scan and check if an obstacle exists in front of the robot"""
         self.ranges = msg.ranges
         self.obstacle_handler.ranges = msg.ranges
         self.has_obs = (
             len(
                 [
                     r
-                    for r in msg.ranges[0:30] + msg.ranges[-30:]
+                    for r in msg.ranges[0:OBS_DET_ANGLE] + msg.ranges[-OBS_DET_ANGLE:]
                     if r != 0.0 and r < OBS_DIST
                 ]
             )
@@ -200,81 +211,97 @@ class FiniteStateMachine(Node):
         )
 
     def process_image(self, msg: Image):
-        frame = self.br.imgmsg_to_cv2(msg)
-        results: Detections = self.model(frame)
+        """Process raw image through YOLO obj detection and update person_loc"""
+        frame = self.br.imgmsg_to_cv2(msg) # convert ROSImage to opencv
+        results: Detections = self.model(frame) # Run image through YOLO
         for pred in results.pred:
             if pred.shape[0]:
                 has_person = False
                 for *box, conf, cls in reversed(pred):
+                    # When we are conf a person is visable update person_loc
                     if self.names[int(cls)] == "person" and conf > 0.5:
                         has_person = True
                         self.person_loc = [None, None]
+                        # Compute location of person as percentage from middle of image [-1,1]
+                        # and pseudo distance as width of bounding box / width of image
                         self.person_loc[0] = (
-                            (box[0] + abs(box[0] - box[2]) / 2) - (frame.shape[1] / 2)
+                            (box[0] + abs(box[0] - box[2]) / 2) -
+                            (frame.shape[1] / 2)
                         ) / (frame.shape[1] / 2)
-                        self.person_loc[1] = abs(box[0] - box[2]) / frame.shape[1]
+                        self.person_loc[1] = abs(
+                            box[0] - box[2]) / frame.shape[1]
                     # label = f'{self.names[int(cls)]} {conf:.2f}'
                 if not has_person:
                     self.person_loc = None
             else:
                 self.person_loc = None
+        # Display bounding box image
         im = cv2.cvtColor(results.render(True)[0], cv2.COLOR_BGR2RGB)
         cv2.imshow("preview", im)
         cv2.waitKey(1)
 
     def run_loop(self):
+        """Main control loop"""
         print(self.curr_state)
 
-        if self.curr_state == State.NO_PERSON:
-            self.publisher.publish(
+        if self.curr_state == State.NO_PERSON:  # State for when current person location is unknown
+            self.cmd_vel_pub.publish(
                 Twist(
                     linear=Vector3(x=0.0, y=0.0, z=0.0),
+                    # Turn in direction person was last seen
                     angular=Vector3(x=0.0, y=0.0, z=0.8 * self.search_dir),
                 )
             )
-            if self.person_loc is not None:
+            if self.person_loc is not None:  # Switch to following when person is found
                 self.curr_state = State.FOLLOWING_PERSON
-        elif self.curr_state == State.CLOSE_TO_PERSON:
-            self.publisher.publish(
+        elif self.curr_state == State.CLOSE_TO_PERSON:  # Stop when person is close to Neato
+            self.cmd_vel_pub.publish(
                 Twist(
                     linear=Vector3(x=0.0, y=0.0, z=0.0),
                     angular=Vector3(x=0.0, y=0.0, z=0.0),
                 )
             )
+            # Switch to person not found or following based on current person location
             if self.person_loc is None:
                 self.curr_state = State.NO_PERSON
-            elif self.person_loc[1] < CLOST_DIST:
+            elif self.person_loc[1] < CLOSE_DIST:
                 self.curr_state = State.FOLLOWING_PERSON
                 return
-        elif self.curr_state == State.FOLLOWING_PERSON:
+        elif self.curr_state == State.FOLLOWING_PERSON:  # Control state where we orient and drive to person
             if self.person_loc is None:
                 self.curr_state = State.NO_PERSON
                 return
-            if self.person_loc[1] > CLOST_DIST:
+            if self.person_loc[1] > CLOSE_DIST:
                 self.curr_state = State.CLOSE_TO_PERSON
                 return
+            # switch states if we detect an obstacle in front of the robot
             if self.has_obs:
                 self.curr_state = State.OBSTACLE_DETECTED
+                # Reset obs handler and set target dist to AVOIDED_DISTANCE in front of current position
                 self.obstacle_handler.obstacle_avoided = False
                 self.obstacle_handler.update_destination()
                 return
+            # update last seen direction of person
             self.search_dir = 1 if self.person_loc[0] < 0 else -1
+            # Control orientation to face person
             turn_speed = -float(Kp_angle * self.person_loc[0])
-            print(turn_speed)
-            self.publisher.publish(
+            self.cmd_vel_pub.publish(
                 Twist(
-                    linear=Vector3(x=0.2, y=0.0, z=0.0),
+                    linear=Vector3(x=FORWARD_SPEED, y=0.0, z=0.0),
                     angular=Vector3(x=0.0, y=0.0, z=turn_speed),
                 )
             )
         elif self.curr_state == State.OBSTACLE_DETECTED:
+            # Once obstacle is avoided (target pose is reached), switch back to FOLLOWING/NO_PERSON state
             if self.obstacle_handler.obstacle_avoided == True:
                 if self.person_loc is not None:
                     self.curr_state = State.FOLLOWING_PERSON
                 else:
                     self.curr_state = State.NO_PERSON
                 return
-            self.publisher.publish(self.obstacle_handler.calculate_vel())
+            # Use obstacle avoidance handler to navigate past detected object
+            self.cmd_vel_pub.publish(self.obstacle_handler.calculate_vel())
+            # Place Marker at target goal pose to visualize obstacle avoidance
             pose = Pose(
                 position=Point(
                     x=float(self.obstacle_handler.destination[0]),
@@ -282,7 +309,8 @@ class FiniteStateMachine(Node):
                     z=0.0,
                 )
             )
-            header = Header(stamp=self.get_clock().now().to_msg(), frame_id="odom")
+            header = Header(
+                stamp=self.get_clock().now().to_msg(), frame_id="odom")
             self.marker_pub.publish(
                 Marker(
                     header=header,
