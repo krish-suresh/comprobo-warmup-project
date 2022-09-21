@@ -7,6 +7,7 @@ from builtin_interfaces.msg import Duration
 
 
 class MarkerTestNode(Node):
+    """Test node to demonstrate publishing a marker."""
     def __init__(self):
         super().__init__('test_marker_node')
         timer_period = 0.1
@@ -14,6 +15,7 @@ class MarkerTestNode(Node):
         self.publisher = self.create_publisher(Marker, 'test_marker', 10)
 
     def run_loop(self):
+        # Create and publish a marker
         pose = Pose(position=Point(x=0.0, y=0.0, z=0.0))
         header = Header(stamp=self.get_clock().now().to_msg(), frame_id="odom")
         self.publisher.publish(Marker(header=header, ns="marker", id=0,
@@ -23,10 +25,10 @@ class MarkerTestNode(Node):
 
 
 def main(args=None):
-    rclpy.init(args=args)      # Initialize communication with ROS
-    node = MarkerTestNode()   # Create our Node
-    rclpy.spin(node)           # Run the Node until ready to shutdown
-    rclpy.shutdown()           # cleanup
+    rclpy.init(args=args)
+    node = MarkerTestNode()
+    rclpy.spin(node)
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
