@@ -45,9 +45,6 @@ class ObstacleAvoider(Node):
         self.curr_heading = np.array([0, 0])
         self.destination = destination
 
-    def update_destination(self, new_destination):
-        self.destination = new_destination
-
     def calculate_heading(self):
         self.calculate_net_force()
         if np.linalg.norm(self.net_force) == 0:
