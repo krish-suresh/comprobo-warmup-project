@@ -22,8 +22,7 @@ def euler_from_quaternion(quat: Quaternion):
     
     return yaw_z
 
-FORCE_PARAMETER_Y = -40 
-FORCE_PARAMETER_X = -40
+FORCE_PARAMETER = -40
 ATTRACTIVE_PARAMETER = 5000
 LIN_VEL_SCALE = 15
 ANG_VEL_SCALE = 50
@@ -45,9 +44,6 @@ class ObstacleAvoider(Node):
         self.curr_heading = np.array([0, 0])
         self.destination = destination
 
-    def update_destination(self, new_destination):
-        self.destination = new_destination
-
     def calculate_heading(self):
         self.calculate_net_force()
         if np.linalg.norm(self.net_force) == 0:
@@ -65,7 +61,7 @@ class ObstacleAvoider(Node):
         forces = []
         for angle, point in enumerate(msg.ranges):
             if point > 0.0:
-                forces.append([FORCE_PARAMETER_X*math.cos(math.radians(angle))/point**2, FORCE_PARAMETER_Y*math.sin(math.radians(angle))/point**2])
+                forces.append([FORCE_PARAMETER*math.cos(math.radians(angle))/point**2, FORCE_PARAMETER*math.sin(math.radians(angle))/point**2])
         self.repellent_forces = np.sum(np.array(forces), axis=0)
 
     def update_curr_pose(self, msg: Odometry):

@@ -74,7 +74,11 @@ One of the primary limitations of this implementation is the inability to segmen
 #### Behavior
 The obstacle avoidance behavior is intended to guide a Neato towards a specific destination (represented as a (x,y) cooridinate) while also avoiding any obstacles along the way. The primary challenge in implementing this behavior is being able to balance motion towards the destination and motion away from any detected obstacles. 
 
-For this implementation, a potential field was made to define the optimal path of travel for the Neato. Using the Neato's LiDAR data through the LaserScan topic, we were able to extract the position of each obstacle in the environment. Using the position of each obstacle, we calculated the repellent force vector, acting as a resistive force, deterring the Neato from approaching that source. For each repllent force, the direction is defined as the vector from the obstacle to the Neato and the magnitude is equal to the `FORCE_PARAMETER` (a tunable constant) divided by the squared distance that the obstacle is away from the Neato. This means that farther obstacles exert smaller force on the Neato than closer obstacles, which logically makes sense as the Neato needs to avoid closer obstacles.
+For this implementation, a potential field was made to define the optimal path of travel for the Neato. An example of the force field is shown below:
+
+<img src="images/potential_field.jpg" width=500>
+
+Each object titled "Obs." represents an obstacle in the way of the Neato. They exert a repellent force on the Neato, deterring its motion away from the obstacle. These forces are obtained through the LiDAR scan, where each circle on the obstacle represents a point detected by the LiDAR. Then, the force vector is formed in the direction from the obstacle point to the Neato and the magnitude of the vector is equal to the `FORCE_PARAMETER` (a tunable constant) divided by the squared distance that the obstacle is away from the Neato.
 
 In addition to the repellent force, there is an attractive force that pulls the Neato towards its detination. This force is defined as the vector from the destination to the current position of the Neato (which is found by extracting Odometry data from the Neato). The magnitude of this vector is equal to the `ATTRACTIVE_PARAMETER` (a tunable constant) divided by the distance the Neato is away from the destination. Originally, the magnitude was only scaled by the `ATTRACTIVE_PARAMETER`, but during experiments, it was found that the Neato would "dance" around its destination, rather than successfully reaching it, especially in the presence of obstacles. For this reason, it was decided to increase the attractive force as the Neato approached its destination.
 #### Demo
@@ -107,3 +111,18 @@ Finally, we arrive at the desired behavior below:
 
 #### Limitations
 Our primary limitation with this method is the constrained obstacle avoidance due to the Neato fully switching to avoiding the obstacle when anything is detected in front and only leaving the state when the temporary goal is reached.
+
+## Code Structure
+For our project, we chose to to separate our code into separate nodes for each separate behavior. This was done so that each behavior can be simply called by running its corresponding node. Each node was structured as a class that extends the Node class. Within each of these classes (with the exception of wall_follower), there is an initializer, helper functions, and a main loop. The intializer is used to instantiate the Node, declare any subscriptions and publishers, and initialize any variables. It also instantiates a timer, which calls the main loop at a frequency of 10 hz. The main loop is used to send Twist (velocity) commands to the Neato and handle any state transitions that are needed. The helper functions are used to handle intermediate transitions and update instance variables that track the status of sensor data from the subcriptions. 
+
+One exception is wall_follower, where the main loop functionality is handled by the helper function that handles data from the LaserScan subscription. Additionally, the finite state machine, which includes all the elements mentioned above, also has a helper class. This helper class is designed to handle the state where the Neato is avoiding a detected objected. This design decision was made in order to abstract the obstacle avoidance away from the main implementation of the finite state machine.
+
+## Reflection
+If we had more time, we would want to iterate on some of our current behaviors to improve their functionality and performance. This would include fixing errors associated with odometry (especially with square driving), since odometry errors tended to accumulate over time, impacting our understanding of the Neato's position. In addition, we would like to improve some of our path planning algorithms throughout our behaviors, which could be accomplished by implementing an algorithm like Rapidly-exploring Random Tree, or simply establishing waypoints for desired positions rather than using velocities to command the Neato. 
+
+In addition, we have several key takeaways that we gained from this experience, which are:
+1. We can't be 100% reliant on the sensors on the Neato. Especially in terms of odometry, there are natural variances and errors with making measurements, meaning that this data can not be taken as fact and needs adjustments to accomplish a given task.
+2. The real world is a significantly different development environment than the simulated world. For several of the behaviors, we had perfect implementations that consistently worked in Gazebo, but were surprised to see that it failed when testing on the physical Neato. This definitely taught us that the unpredictability of the real-world is a factor we need to consider when designing a system for a robot.
+3. The ROS debugging tools are very helpful. Rather than simply print-based debugging (which is only mildly effective in typical software development), ROS gives several tools for visualization, like RQt that allow us to assert whether our code is acting as expected and more directly pinpointing any fail cases.
+
+As a whole, we both found this project to be an excellent learning experience and allowed us to take innovative angles on new problems, ultimately allowing us to develop advanced behaviors.
